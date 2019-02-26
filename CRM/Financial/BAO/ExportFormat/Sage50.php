@@ -81,6 +81,8 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
     $fileName = self::putFile($batchEntries);
 
     $this->output($fileName);
+
+    $this->downloadFile($fileName);
   }
 
   /**
@@ -91,6 +93,16 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
   public function output($fileName = NULL) {
     // Default behaviour, override if needed:
     self::createActivityExport($this->_batchIds, $fileName);
+  }
+
+  public function downloadFile($fileName) {
+    CRM_Utils_System::setHttpHeader('Content-Type', 'text/plain');
+    CRM_Utils_System::setHttpHeader('Content-Disposition', 'attachment; filename=' . CRM_Utils_File::cleanFileName(basename($fileName)));
+    CRM_Utils_System::setHttpHeader('Content-Length', '' . filesize(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($fileName))));
+    ob_clean();
+    flush();
+    readfile(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($fileName)));
+    CRM_Utils_System::civiExit();
   }
 
   /**
