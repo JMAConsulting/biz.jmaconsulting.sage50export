@@ -85,6 +85,13 @@ class CRM_Sage50export_Util {
       else {
         $creditAccount = $dao->from_credit_account;
       }
+      $debitCode = $dao->to_account_code;
+      if ($dao->chapter_to) {
+        $debitCode .= "-" . $dao->chapter_to;
+      }
+      if ($dao->chapter_from) {
+        $creditAccount = $creditAccount . "-" . $dao->chapter_from;
+      }
       $sage50Batch[$dao->financial_trxn_id] = [
         "trxn_header" => [
           "date" => date('m-d-y', strtotime($dao->trxn_date)),
@@ -92,7 +99,7 @@ class CRM_Sage50export_Util {
           "source" => $dao->source,
         ],
         "debit_entry" => [
-          "code" => $dao->to_account_code . "-" . $dao->chapter_to,
+          "code" => $debitCode,
           "amount" => $dao->amount,
           "comment" => $dao->item_description,
           "project_allocation" => 1,
@@ -102,7 +109,7 @@ class CRM_Sage50export_Util {
           "amount" => '100.00',
         ],
         "credit_entry" => [
-          "code" => $creditAccount . "-" . $dao->chapter_from,
+          "code" => $creditAccount,
           "amount" => number_format(-1 * ($dao->amount), 2),
           "comment" => $dao->item_description,
           "project_allocation" => 1,
