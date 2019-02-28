@@ -60,7 +60,6 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
       'id' => $batchID,
       'data' => 'Not Synchronized',
     ]);
-
     return $batchID;
   }
 
@@ -70,23 +69,20 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
    * @param array $export
    */
   public function makeExport($export) {
-    $batchEntries = [];
     foreach ($export as $batchID) {
+      $batchEntries = [];
       $this->_batchIds = $batchID;
-      CRM_Core_DAO::executeQuery("INSERT IGNORE INTO civicrm_sage50_batches(`batch_id`) VALUES ($batchID)");
       $batchEntries[$batchID] = CRM_Sage50export_Util::fetchEntries($batchID);
+      // Save the file in the public directory.
+      $fileName = self::putFile($batchEntries);
+      $this->output($fileName);
     }
 
-    // Save the file in the public directory.
-    $fileName = self::putFile($batchEntries);
-
-    $this->output($fileName);
-
-    $this->downloadFile($fileName);
+    $this->downloadFile();
   }
 
   /**
-   * Exports sbatches in $this->_batchIds, and saves to file.
+   * Exports batches in $this->_batchIds, and saves to file.
    *
    * @param string $fileName - use this file name (if applicable)
    */
@@ -95,14 +91,31 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
     self::createActivityExport($this->_batchIds, $fileName);
   }
 
-  public function downloadFile($fileName) {
-    CRM_Utils_System::setHttpHeader('Content-Type', 'text/plain');
-    CRM_Utils_System::setHttpHeader('Content-Disposition', 'attachment; filename=' . CRM_Utils_File::cleanFileName(basename($fileName)));
-    CRM_Utils_System::setHttpHeader('Content-Length', '' . filesize(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($fileName))));
-    ob_clean();
-    flush();
-    readfile(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($fileName)));
-    CRM_Utils_System::civiExit();
+  public function downloadFile() {
+    // zip files if more than one.
+    if (count($this->_downloadFile) > 1) {
+      $zip = CRM_Core_Config::singleton()->customFileUploadDir . 'Financial_Sage50Entries_' . date('YmdHis') . '.zip';
+      $result = $this->createZip($this->_downloadFile, $zip, TRUE);
+      if ($result) {
+        CRM_Utils_System::setHttpHeader('Content-Type', 'application/zip');
+        CRM_Utils_System::setHttpHeader('Content-Disposition', 'attachment; filename=' . CRM_Utils_File::cleanFileName(basename($zip)));
+        CRM_Utils_System::setHttpHeader('Content-Length', '' . filesize($zip));
+        ob_clean();
+        flush();
+        readfile(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($zip)));
+        unlink($zip); //delete the zip to avoid clutter.
+        CRM_Utils_System::civiExit();
+      }
+    }
+    else {
+      CRM_Utils_System::setHttpHeader('Content-Type', 'text/plain');
+      CRM_Utils_System::setHttpHeader('Content-Disposition', 'attachment; filename=' . CRM_Utils_File::cleanFileName(basename($this->_downloadFile[0])));
+      CRM_Utils_System::setHttpHeader('Content-Length', '' . filesize(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($this->_downloadFile[0]))));
+      ob_clean();
+      flush();
+      readfile(CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($this->_downloadFile[0])));
+      CRM_Utils_System::civiExit();
+    }
   }
 
   /**
@@ -160,25 +173,20 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
    * @return string
    */
   public function putFile($export) {
-    $fileName = CRM_Core_Config::singleton()->uploadDir . 'Financial_Transactions_Sage50Entries_' . date('YmdHis') . '.' . $this->getFileExtension();
+    $fileName = CRM_Core_Config::singleton()->uploadDir . 'Financial_Sage50Entries_' . $this->_batchIds . '_' . date('YmdHis') . '.' . $this->getFileExtension();
+    $this->_downloadFile[] = CRM_Core_Config::singleton()->customFileUploadDir . CRM_Utils_File::cleanFileName(basename($fileName));
     $out = fopen($fileName, 'w');
     $content = [];
     foreach ($export as $batchId => $item) {
       foreach ($item as $trxn => $entries) {
-        if ($trxn == "batch_description") {
-          $content[] = $entries['date'] . ',"' . $entries['doc_number'] . '","' . $entries['header'] . '"';
-        }
         foreach ($entries as $header => $entry) {
-          if ($header == 'from_header') {
-            $content[] = $entry['code'] . ',' . $entry['amount'] . ',"' . $entry['comment'] . '","' . $entry['project_allocation'] . '"';
+          if ($header == 'trxn_header') {
+            $content[] = $entry['date'] . ',"' . $entry['invoice'] . '","' . $entry['source'] . '"';
           }
-          if ($header == 'from_entry') {
-            $content[] = '"' . $entry['fund'] . '",' . $entry['amount'];
+          if ($header == 'debit_entry' || $header == 'credit_entry') {
+            $content[] = $entry['code'] . ',' . $entry['amount'] . ',"' . $entry['comment'] . '",' . $entry['project_allocation'];
           }
-          if ($header == 'to_header') {
-            $content[] = $entry['code'] . ',' . $entry['amount'] . ',"' . $entry['comment'] . '","' . $entry['project_allocation'] . '"';
-          }
-          if ($header == 'to_entry') {
+          if ($header == 'debit_fund' || $header == 'credit_fund') {
             $content[] = '"' . $entry['fund'] . '",' . $entry['amount'];
           }
         }
