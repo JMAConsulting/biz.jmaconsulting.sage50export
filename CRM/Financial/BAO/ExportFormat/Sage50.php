@@ -184,7 +184,15 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
             $content[] = $entry['date'] . ',"' . $entry['invoice'] . '","' . $entry['source'] . '"';
           }
           if ($header == 'debit_entry' || $header == 'credit_entry') {
-            $content[] = $entry['code'] . ',' . $entry['amount'] . ',"' . $entry['comment'] . '",' . $entry['project_allocation'];
+            $line = $entry['code'] . ',' . $entry['amount'] . ',';
+            if (!empty($entry['comment'])) {
+              $line .= '"' . $entry['comment'] . '"';
+            }
+            else {
+              $line .= ',';
+            }
+            $line .= $entry['project_allocation'];
+            $content[] = $line;
           }
           if ($header == 'debit_fund' || $header == 'credit_fund') {
             $content[] = '"' . $entry['fund'] . '",' . $entry['amount'];
@@ -192,7 +200,7 @@ class CRM_Financial_BAO_ExportFormat_Sage50 extends CRM_Financial_BAO_ExportForm
         }
       }
     }
-    $content = implode("\n", $content);
+    $content = implode("\r\n", $content);
     file_put_contents($fileName, $content, FILE_APPEND);
     fclose($out);
 
