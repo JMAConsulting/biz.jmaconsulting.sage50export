@@ -2,7 +2,7 @@
 <extension key="biz.jmaconsulting.sage50export" type="module">
   <file>sage50export</file>
   <name>Sage 50 Export</name>
-  <description>FIXME</description>
+  <description>This extension exports batches from CiviCRM to Sage 50. Departments and Projects for both debit and credit sides are supported, but in initial version they are labelled Chapter and Fund.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Edsel Lopez</author>
@@ -20,7 +20,7 @@
   <compatibility>
     <ver>5.10</ver>
   </compatibility>
-  <comments>This extension exports batches from CiviCRM to Sage 50. Departments and Projects for both debit and credit sides are supported, but in initial version they are labelled Chapter and Fund.</comments>
+  <comments></comments>
   <civix>
     <namespace>CRM/Sage50export</namespace>
   </civix>
